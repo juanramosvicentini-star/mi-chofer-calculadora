@@ -41,7 +41,7 @@ Google Directions API puede advertir que una ruta incluye peajes, pero no suele 
 
 Tocá el botón `Admin` en la parte superior. Desde ahí podés modificar:
 
-- Tarifa base.
+- Precio mínimo del viaje.
 - Valores por km para los tres tramos.
 - Multiplicador de hora pico.
 - Recargo por tarjeta.
@@ -49,6 +49,16 @@ Tocá el botón `Admin` en la parte superior. Desde ahí podés modificar:
 - Textos principales de la web.
 
 Los datos se guardan en `localStorage`, por lo que quedan persistidos en el navegador donde se editaron.
+
+## Regla de cálculo
+
+La calculadora no suma el precio mínimo al valor por kilómetros. Primero calcula el recorrido por tramos escalonados y luego aplica el piso mínimo del viaje:
+
+```txt
+subtotal = mayor entre precio mínimo y precio por kilómetros
+```
+
+Después de ese subtotal se aplican, si corresponden, hora pico, recargo por tarjeta y peajes.
 
 ## Deploy gratis
 

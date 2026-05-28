@@ -8,7 +8,7 @@ const GOOGLE_MAPS_API_KEY = "AIzaSyCbcYMbdwfcfrGFPQKs3qwKCNR0o53baJ0";
 const STORAGE_KEY = "privateDriverCalculatorConfig";
 
 const DEFAULT_CONFIG = {
-  baseFare: 15000,
+  minimumFare: 15000,
   rates: {
     tier1: 1850,
     tier2: 1700,
@@ -100,9 +100,12 @@ function loadConfig() {
 }
 
 function mergeConfig(defaults, saved) {
+  const migratedMinimumFare = saved.minimumFare ?? saved.baseFare ?? defaults.minimumFare;
+
   return {
     ...defaults,
     ...saved,
+    minimumFare: migratedMinimumFare,
     rates: { ...defaults.rates, ...(saved.rates || {}) },
     texts: { ...defaults.texts, ...(saved.texts || {}) },
   };
@@ -286,7 +289,8 @@ function getRouteError(status) {
 }
 
 function calculateQuote(distanceKm) {
-  const subtotal = state.config.baseFare + calculateTieredDistancePrice(distanceKm);
+  const distancePrice = calculateTieredDistancePrice(distanceKm);
+  const subtotal = Math.max(state.config.minimumFare, distancePrice);
   const isPeak = new FormData(elements.form).get("timeMode") === "peak";
   const paymentMethod = elements.paymentMethod.value;
   const manualTolls = Number(elements.manualTolls.value) || 0;
@@ -297,6 +301,7 @@ function calculateQuote(distanceKm) {
   const total = afterPeak + cardSurcharge + tolls;
 
   return {
+    distancePrice,
     subtotal,
     peakSurcharge,
     cardSurcharge,
@@ -374,7 +379,7 @@ function toggleAdminPanel() {
 }
 
 function hydrateAdminForm() {
-  elements.adminBaseFare.value = state.config.baseFare;
+  elements.adminBaseFare.value = state.config.minimumFare;
   elements.adminRateTier1.value = state.config.rates.tier1;
   elements.adminRateTier2.value = state.config.rates.tier2;
   elements.adminRateTier3.value = state.config.rates.tier3;
@@ -389,9 +394,10 @@ function hydrateAdminForm() {
 function handleAdminSubmit(event) {
   event.preventDefault();
 
+  const { baseFare, ...currentConfig } = state.config;
   const updatedConfig = {
-    ...state.config,
-    baseFare: readPositiveNumber(elements.adminBaseFare, DEFAULT_CONFIG.baseFare),
+    ...currentConfig,
+    minimumFare: readPositiveNumber(elements.adminBaseFare, DEFAULT_CONFIG.minimumFare),
     rates: {
       tier1: readPositiveNumber(elements.adminRateTier1, DEFAULT_CONFIG.rates.tier1),
       tier2: readPositiveNumber(elements.adminRateTier2, DEFAULT_CONFIG.rates.tier2),
