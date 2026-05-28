@@ -45,8 +45,11 @@ Tocá el botón `Admin` en la parte superior. Desde ahí podés modificar:
 - Valores por km para los tres tramos.
 - Multiplicador de hora pico.
 - Recargo por tarjeta.
+- Recargo por viaje de hotel.
 - Peaje por defecto.
 - Textos principales de la web.
+
+La contraseña de acceso al panel es `Michofer2026`.
 
 Los datos se guardan en `localStorage`, por lo que quedan persistidos en el navegador donde se editaron.
 
@@ -59,6 +62,11 @@ subtotal = mayor entre precio mínimo y precio por kilómetros
 ```
 
 Después de ese subtotal se aplican, si corresponden, hora pico, recargo por tarjeta y peajes.
+
+La pantalla muestra dos precios finales:
+
+- Efectivo / transferencia.
+- Tarjeta, con el recargo configurado aplicado automáticamente.
 
 ## Deploy gratis
 

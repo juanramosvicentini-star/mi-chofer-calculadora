@@ -125,15 +125,6 @@
                 </label>
               </fieldset>
 
-              <label class="field">
-                <span>Método de pago</span>
-                <select id="paymentMethod" name="paymentMethod">
-                  <option value="cash">Efectivo</option>
-                  <option value="transfer">Transferencia</option>
-                  <option value="card">Tarjeta</option>
-                </select>
-              </label>
-
               <label class="toggle-field">
                 <input id="includeTolls" name="includeTolls" type="checkbox" checked />
                 <span>
@@ -153,6 +144,14 @@
                   inputmode="decimal"
                   value="0"
                 />
+              </label>
+
+              <label class="toggle-field">
+                <input id="hotelTrip" name="hotelTrip" type="checkbox" />
+                <span>
+                  <strong>Viaje de hotel</strong>
+                  <small>Aplica el porcentaje configurado en el panel admin.</small>
+                </span>
               </label>
             </div>
 
@@ -174,8 +173,15 @@
             </div>
 
             <div class="total-display">
-              <span>Total estimado</span>
-              <strong id="finalTotal">$0</strong>
+              <span>Total efectivo / transferencia</span>
+              <strong id="cashTransferTotal">$0</strong>
+              <small>Precio final sin recargo por tarjeta</small>
+            </div>
+
+            <div class="total-display card-total">
+              <span>Total con tarjeta</span>
+              <strong id="cardTotal">$0</strong>
+              <small>Incluye recargo de tarjeta</small>
             </div>
 
             <dl class="summary-list">
@@ -188,12 +194,24 @@
                 <dd id="durationValue">-</dd>
               </div>
               <div>
+                <dt>Precio por km</dt>
+                <dd id="distancePriceValue">$0</dd>
+              </div>
+              <div>
+                <dt>Mínimo aplicado</dt>
+                <dd id="minimumValue">$0</dd>
+              </div>
+              <div>
                 <dt>Subtotal</dt>
                 <dd id="subtotalValue">$0</dd>
               </div>
               <div>
                 <dt>Recargo hora pico</dt>
                 <dd id="peakValue">$0</dd>
+              </div>
+              <div>
+                <dt>Recargo hotel</dt>
+                <dd id="hotelValue">$0</dd>
               </div>
               <div>
                 <dt>Recargo tarjeta</dt>
@@ -250,8 +268,12 @@
               <input id="adminPeakMultiplier" type="number" min="1" step="0.01" />
             </label>
             <label class="field">
-              <span>Recargo tarjeta</span>
-              <input id="adminCardSurcharge" type="number" min="0" step="0.01" />
+              <span>Recargo tarjeta (%)</span>
+              <input id="adminCardSurcharge" type="number" min="0" step="0.1" />
+            </label>
+            <label class="field">
+              <span>Recargo hotel (%)</span>
+              <input id="adminHotelSurcharge" type="number" min="0" step="0.1" />
             </label>
             <label class="field">
               <span>Peaje por defecto</span>

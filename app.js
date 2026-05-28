@@ -6,6 +6,7 @@
 const GOOGLE_MAPS_API_KEY = "AIzaSyCbcYMbdwfcfrGFPQKs3qwKCNR0o53baJ0";
 
 const STORAGE_KEY = "privateDriverCalculatorConfig";
+const ADMIN_PASSWORD = "Michofer2026";
 
 const DEFAULT_CONFIG = {
   minimumFare: 15000,
@@ -16,6 +17,7 @@ const DEFAULT_CONFIG = {
   },
   peakMultiplier: 1.15,
   cardSurcharge: 0.15,
+  hotelSurcharge: 0.05,
   defaultTolls: 0,
   texts: {
     brandName: "Remis Ejecutivo",
@@ -43,15 +45,19 @@ const elements = {
   stop1: document.querySelector("#stop1"),
   stop2: document.querySelector("#stop2"),
   destination: document.querySelector("#destination"),
-  paymentMethod: document.querySelector("#paymentMethod"),
   includeTolls: document.querySelector("#includeTolls"),
+  hotelTrip: document.querySelector("#hotelTrip"),
   manualTolls: document.querySelector("#manualTolls"),
   mapEmpty: document.querySelector("#mapEmpty"),
-  finalTotal: document.querySelector("#finalTotal"),
+  cashTransferTotal: document.querySelector("#cashTransferTotal"),
+  cardTotal: document.querySelector("#cardTotal"),
   distanceValue: document.querySelector("#distanceValue"),
   durationValue: document.querySelector("#durationValue"),
+  distancePriceValue: document.querySelector("#distancePriceValue"),
+  minimumValue: document.querySelector("#minimumValue"),
   subtotalValue: document.querySelector("#subtotalValue"),
   peakValue: document.querySelector("#peakValue"),
+  hotelValue: document.querySelector("#hotelValue"),
   cardValue: document.querySelector("#cardValue"),
   tollsValue: document.querySelector("#tollsValue"),
   fareNote: document.querySelector("#fareNote"),
@@ -64,6 +70,7 @@ const elements = {
   adminRateTier3: document.querySelector("#adminRateTier3"),
   adminPeakMultiplier: document.querySelector("#adminPeakMultiplier"),
   adminCardSurcharge: document.querySelector("#adminCardSurcharge"),
+  adminHotelSurcharge: document.querySelector("#adminHotelSurcharge"),
   adminDefaultTolls: document.querySelector("#adminDefaultTolls"),
   adminBrandName: document.querySelector("#adminBrandName"),
   adminHeadline: document.querySelector("#adminHeadline"),
@@ -292,21 +299,24 @@ function calculateQuote(distanceKm) {
   const distancePrice = calculateTieredDistancePrice(distanceKm);
   const subtotal = Math.max(state.config.minimumFare, distancePrice);
   const isPeak = new FormData(elements.form).get("timeMode") === "peak";
-  const paymentMethod = elements.paymentMethod.value;
   const manualTolls = Number(elements.manualTolls.value) || 0;
   const tolls = elements.includeTolls.checked ? manualTolls + state.config.defaultTolls : 0;
   const peakSurcharge = isPeak ? subtotal * (state.config.peakMultiplier - 1) : 0;
   const afterPeak = subtotal + peakSurcharge;
-  const cardSurcharge = paymentMethod === "card" ? afterPeak * state.config.cardSurcharge : 0;
-  const total = afterPeak + cardSurcharge + tolls;
+  const hotelSurcharge = elements.hotelTrip.checked ? afterPeak * state.config.hotelSurcharge : 0;
+  const cashTransferTotal = afterPeak + hotelSurcharge + tolls;
+  const cardSurcharge = cashTransferTotal * state.config.cardSurcharge;
+  const cardTotal = cashTransferTotal + cardSurcharge;
 
   return {
     distancePrice,
     subtotal,
     peakSurcharge,
+    hotelSurcharge,
     cardSurcharge,
     tolls,
-    total,
+    cashTransferTotal,
+    cardTotal,
   };
 }
 
@@ -325,11 +335,16 @@ function calculateTieredDistancePrice(distanceKm) {
 function renderQuote(route, quote) {
   elements.distanceValue.textContent = `${route.distanceKm.toFixed(1)} km`;
   elements.durationValue.textContent = formatDuration(route.durationSeconds);
+  elements.distancePriceValue.textContent = formatCurrency(quote.distancePrice);
+  elements.minimumValue.textContent =
+    quote.distancePrice < state.config.minimumFare ? formatCurrency(state.config.minimumFare) : "$0";
   elements.subtotalValue.textContent = formatCurrency(quote.subtotal);
   elements.peakValue.textContent = formatCurrency(quote.peakSurcharge);
+  elements.hotelValue.textContent = formatCurrency(quote.hotelSurcharge);
   elements.cardValue.textContent = formatCurrency(quote.cardSurcharge);
   elements.tollsValue.textContent = formatCurrency(quote.tolls);
-  elements.finalTotal.textContent = formatCurrency(quote.total);
+  elements.cashTransferTotal.textContent = formatCurrency(quote.cashTransferTotal);
+  elements.cardTotal.textContent = formatCurrency(quote.cardTotal);
 
   const tollMessage = route.includesTolls
     ? "La ruta parece incluir peajes. Google no informa el costo exacto en Directions API, por eso el importe queda editable."
@@ -372,6 +387,15 @@ function showApiNotice() {
 }
 
 function toggleAdminPanel() {
+  if (elements.adminPanel.hidden) {
+    const password = window.prompt("Ingresá la contraseña de administrador");
+
+    if (password !== ADMIN_PASSWORD) {
+      showMessage("Contraseña incorrecta. El panel administrador sigue bloqueado.", "error");
+      return;
+    }
+  }
+
   const isHidden = elements.adminPanel.hidden;
   elements.adminPanel.hidden = !isHidden;
   elements.adminToggle.setAttribute("aria-expanded", String(isHidden));
@@ -384,7 +408,8 @@ function hydrateAdminForm() {
   elements.adminRateTier2.value = state.config.rates.tier2;
   elements.adminRateTier3.value = state.config.rates.tier3;
   elements.adminPeakMultiplier.value = state.config.peakMultiplier;
-  elements.adminCardSurcharge.value = state.config.cardSurcharge;
+  elements.adminCardSurcharge.value = toPercentInput(state.config.cardSurcharge);
+  elements.adminHotelSurcharge.value = toPercentInput(state.config.hotelSurcharge);
   elements.adminDefaultTolls.value = state.config.defaultTolls;
   elements.adminBrandName.value = state.config.texts.brandName;
   elements.adminHeadline.value = state.config.texts.headline;
@@ -404,7 +429,8 @@ function handleAdminSubmit(event) {
       tier3: readPositiveNumber(elements.adminRateTier3, DEFAULT_CONFIG.rates.tier3),
     },
     peakMultiplier: Math.max(1, readPositiveNumber(elements.adminPeakMultiplier, 1.15)),
-    cardSurcharge: readPositiveNumber(elements.adminCardSurcharge, 0.15),
+    cardSurcharge: readPositiveNumber(elements.adminCardSurcharge, 15) / 100,
+    hotelSurcharge: readPositiveNumber(elements.adminHotelSurcharge, 5) / 100,
     defaultTolls: readPositiveNumber(elements.adminDefaultTolls, 0),
     texts: {
       ...state.config.texts,
@@ -423,4 +449,8 @@ function handleAdminSubmit(event) {
 function readPositiveNumber(input, fallback) {
   const value = Number(input.value);
   return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function toPercentInput(decimalValue) {
+  return Number((decimalValue * 100).toFixed(2));
 }

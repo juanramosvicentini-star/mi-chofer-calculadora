@@ -436,14 +436,29 @@ h1 {
   color: white;
 }
 
+.total-display + .total-display {
+  margin-top: 12px;
+}
+
+.card-total {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
 .total-display span,
-.total-display strong {
+.total-display strong,
+.total-display small {
   display: block;
 }
 
-.total-display span {
+.total-display span,
+.total-display small {
   color: rgba(255, 255, 255, 0.72);
   font-weight: 700;
+}
+
+.total-display small {
+  margin-top: 8px;
+  font-size: 0.82rem;
 }
 
 .total-display strong {
