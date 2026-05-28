@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Calculadora profesional de viajes para choferes y remises privados con Google Maps."
+    />
+    <title>Calculadora de Traslados Privados</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#calculator" aria-label="Inicio">
+          <span class="brand-mark">R</span>
+          <span>
+            <strong data-text="brandName">Remis Ejecutivo</strong>
+            <small data-text="brandTagline">Cotizador premium de traslados</small>
+          </span>
+        </a>
+        <button class="ghost-button" id="adminToggle" type="button" aria-expanded="false">
+          Admin
+        </button>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="pageTitle">
+          <div class="hero-copy">
+            <p class="eyebrow" data-text="eyebrow">Choferes privados · Argentina</p>
+            <h1 id="pageTitle" data-text="headline">Calculá un traslado con precio claro en segundos.</h1>
+            <p data-text="intro">
+              Ingresá origen, destino y paradas opcionales. La tarifa se calcula con distancia real,
+              recargos configurables y un resumen transparente para el pasajero.
+            </p>
+          </div>
+          <div class="hero-metrics" aria-label="Beneficios del servicio">
+            <div>
+              <strong>24/7</strong>
+              <span>Reservas</span>
+            </div>
+            <div>
+              <strong>GPS</strong>
+              <span>Ruta real</span>
+            </div>
+            <div>
+              <strong>ARS</strong>
+              <span>Tarifa local</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace" id="calculator">
+          <form class="quote-card" id="quoteForm" novalidate>
+            <div class="section-heading">
+              <span>01</span>
+              <div>
+                <h2>Datos del viaje</h2>
+                <p>Completá al menos partida y destino.</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Dirección de partida</span>
+                <input
+                  id="origin"
+                  name="origin"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Ej: Av. del Libertador 1000, CABA"
+                  required
+                />
+              </label>
+              <label class="field">
+                <span>Parada opcional 1</span>
+                <input
+                  id="stop1"
+                  name="stop1"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Agregar parada"
+                />
+              </label>
+              <label class="field">
+                <span>Parada opcional 2</span>
+                <input
+                  id="stop2"
+                  name="stop2"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Agregar parada"
+                />
+              </label>
+              <label class="field">
+                <span>Dirección de destino</span>
+                <input
+                  id="destination"
+                  name="destination"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Ej: Aeropuerto Ezeiza"
+                  required
+                />
+              </label>
+            </div>
+
+            <div class="controls-grid">
+              <fieldset class="segmented-field">
+                <legend>Horario</legend>
+                <label>
+                  <input type="radio" name="timeMode" value="normal" checked />
+                  <span>Hora normal</span>
+                </label>
+                <label>
+                  <input type="radio" name="timeMode" value="peak" />
+                  <span>Hora pico</span>
+                </label>
+              </fieldset>
+
+              <label class="field">
+                <span>Método de pago</span>
+                <select id="paymentMethod" name="paymentMethod">
+                  <option value="cash">Efectivo</option>
+                  <option value="transfer">Transferencia</option>
+                  <option value="card">Tarjeta</option>
+                </select>
+              </label>
+
+              <label class="toggle-field">
+                <input id="includeTolls" name="includeTolls" type="checkbox" checked />
+                <span>
+                  <strong>Agregar peajes</strong>
+                  <small>Se suman al total y quedan separados en el resumen.</small>
+                </span>
+              </label>
+
+              <label class="field">
+                <span>Peajes manuales</span>
+                <input
+                  id="manualTolls"
+                  name="manualTolls"
+                  type="number"
+                  min="0"
+                  step="100"
+                  inputmode="decimal"
+                  value="0"
+                />
+              </label>
+            </div>
+
+            <div class="status-message" id="message" role="status" aria-live="polite"></div>
+
+            <button class="primary-button" id="calculateButton" type="submit">
+              <span class="button-label">Calcular traslado</span>
+              <span class="loader" aria-hidden="true"></span>
+            </button>
+          </form>
+
+          <aside class="result-card" aria-live="polite">
+            <div class="section-heading">
+              <span>02</span>
+              <div>
+                <h2>Resumen</h2>
+                <p>Detalle final del presupuesto.</p>
+              </div>
+            </div>
+
+            <div class="total-display">
+              <span>Total estimado</span>
+              <strong id="finalTotal">$0</strong>
+            </div>
+
+            <dl class="summary-list">
+              <div>
+                <dt>Kilómetros totales</dt>
+                <dd id="distanceValue">-</dd>
+              </div>
+              <div>
+                <dt>Tiempo estimado</dt>
+                <dd id="durationValue">-</dd>
+              </div>
+              <div>
+                <dt>Subtotal</dt>
+                <dd id="subtotalValue">$0</dd>
+              </div>
+              <div>
+                <dt>Recargo hora pico</dt>
+                <dd id="peakValue">$0</dd>
+              </div>
+              <div>
+                <dt>Recargo tarjeta</dt>
+                <dd id="cardValue">$0</dd>
+              </div>
+              <div>
+                <dt>Peajes</dt>
+                <dd id="tollsValue">$0</dd>
+              </div>
+            </dl>
+
+            <div class="fare-note" id="fareNote">
+              La integración queda lista para obtener distancia y tiempo reales desde Google Maps.
+            </div>
+          </aside>
+        </section>
+
+        <section class="map-panel" aria-label="Mapa del recorrido">
+          <div id="map" class="map-canvas"></div>
+          <div class="map-empty" id="mapEmpty">
+            <strong>Mapa del recorrido</strong>
+            <span>Se mostrará después de calcular una ruta válida.</span>
+          </div>
+        </section>
+
+        <section class="admin-panel" id="adminPanel" hidden>
+          <div class="section-heading">
+            <span>03</span>
+            <div>
+              <h2>Panel administrador</h2>
+              <p>Los cambios se guardan en este navegador.</p>
+            </div>
+          </div>
+
+          <form id="adminForm" class="admin-grid">
+            <label class="field">
+              <span>Tarifa base</span>
+              <input id="adminBaseFare" type="number" min="0" step="100" />
+            </label>
+            <label class="field">
+              <span>Km 0 a 10</span>
+              <input id="adminRateTier1" type="number" min="0" step="50" />
+            </label>
+            <label class="field">
+              <span>Km 10 a 25</span>
+              <input id="adminRateTier2" type="number" min="0" step="50" />
+            </label>
+            <label class="field">
+              <span>Más de 25 km</span>
+              <input id="adminRateTier3" type="number" min="0" step="50" />
+            </label>
+            <label class="field">
+              <span>Multiplicador hora pico</span>
+              <input id="adminPeakMultiplier" type="number" min="1" step="0.01" />
+            </label>
+            <label class="field">
+              <span>Recargo tarjeta</span>
+              <input id="adminCardSurcharge" type="number" min="0" step="0.01" />
+            </label>
+            <label class="field">
+              <span>Peaje por defecto</span>
+              <input id="adminDefaultTolls" type="number" min="0" step="100" />
+            </label>
+            <label class="field">
+              <span>Nombre de marca</span>
+              <input id="adminBrandName" type="text" maxlength="40" />
+            </label>
+            <label class="field field-wide">
+              <span>Título principal</span>
+              <input id="adminHeadline" type="text" maxlength="120" />
+            </label>
+            <label class="field field-wide">
+              <span>Texto introductorio</span>
+              <textarea id="adminIntro" rows="3" maxlength="260"></textarea>
+            </label>
+            <button class="primary-button admin-save" type="submit">Guardar cambios</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <template id="googleApiNotice">
+      <p>
+        Para usar rutas reales, colocá tu API key en <strong>app.js</strong>, constante
+        <strong>GOOGLE_MAPS_API_KEY</strong>.
+      </p>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,170 @@
+      }
+
+      const route = response.routes[0];
+      const totals = route.legs.reduce(
+        (accumulator, leg) => ({
+          distanceMeters: accumulator.distanceMeters + (leg.distance?.value || 0),
+          durationSeconds:
+            accumulator.durationSeconds +
+            (leg.duration_in_traffic?.value || leg.duration?.value || 0),
+        }),
+        { distanceMeters: 0, durationSeconds: 0 }
+      );
+
+      state.directionsRenderer.setDirections(response);
+      elements.mapEmpty.hidden = true;
+
+      resolve({
+        distanceKm: totals.distanceMeters / 1000,
+        durationSeconds: totals.durationSeconds,
+        includesTolls: route.warnings?.some((warning) => /peaje|toll/i.test(warning)) || false,
+      });
+    });
+  });
+}
+
+function getRouteError(status) {
+  const messages = {
+    ZERO_RESULTS: "No encontramos una ruta manejable entre esas direcciones.",
+    NOT_FOUND: "Alguna dirección no pudo reconocerse. Revisá el texto ingresado.",
+    OVER_QUERY_LIMIT: "Se alcanzó el límite de consultas de Google Maps.",
+    REQUEST_DENIED: "Google Maps rechazó la solicitud. Revisá la API key y las restricciones.",
+    INVALID_REQUEST: "La solicitud de ruta está incompleta.",
+  };
+
+  return messages[status] || "No pudimos calcular esa ruta en este momento.";
+}
+
+function calculateQuote(distanceKm) {
+  const subtotal = state.config.baseFare + calculateTieredDistancePrice(distanceKm);
+  const isPeak = new FormData(elements.form).get("timeMode") === "peak";
+  const paymentMethod = elements.paymentMethod.value;
+  const manualTolls = Number(elements.manualTolls.value) || 0;
+  const tolls = elements.includeTolls.checked ? manualTolls + state.config.defaultTolls : 0;
+  const peakSurcharge = isPeak ? subtotal * (state.config.peakMultiplier - 1) : 0;
+  const afterPeak = subtotal + peakSurcharge;
+  const cardSurcharge = paymentMethod === "card" ? afterPeak * state.config.cardSurcharge : 0;
+  const total = afterPeak + cardSurcharge + tolls;
+
+  return {
+    subtotal,
+    peakSurcharge,
+    cardSurcharge,
+    tolls,
+    total,
+  };
+}
+
+function calculateTieredDistancePrice(distanceKm) {
+  const firstTierKm = Math.min(distanceKm, 10);
+  const secondTierKm = Math.min(Math.max(distanceKm - 10, 0), 15);
+  const thirdTierKm = Math.max(distanceKm - 25, 0);
+
+  return (
+    firstTierKm * state.config.rates.tier1 +
+    secondTierKm * state.config.rates.tier2 +
+    thirdTierKm * state.config.rates.tier3
+  );
+}
+
+function renderQuote(route, quote) {
+  elements.distanceValue.textContent = `${route.distanceKm.toFixed(1)} km`;
+  elements.durationValue.textContent = formatDuration(route.durationSeconds);
+  elements.subtotalValue.textContent = formatCurrency(quote.subtotal);
+  elements.peakValue.textContent = formatCurrency(quote.peakSurcharge);
+  elements.cardValue.textContent = formatCurrency(quote.cardSurcharge);
+  elements.tollsValue.textContent = formatCurrency(quote.tolls);
+  elements.finalTotal.textContent = formatCurrency(quote.total);
+
+  const tollMessage = route.includesTolls
+    ? "La ruta parece incluir peajes. Google no informa el costo exacto en Directions API, por eso el importe queda editable."
+    : "Si la ruta incluye peajes, cargá el importe manual o definí un peaje por defecto desde Admin.";
+  elements.fareNote.textContent = tollMessage;
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(Math.round(value));
+}
+
+function formatDuration(totalSeconds) {
+  const minutes = Math.max(1, Math.round(totalSeconds / 60));
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (!hours) return `${minutes} min`;
+  if (!remainingMinutes) return `${hours} h`;
+  return `${hours} h ${remainingMinutes} min`;
+}
+
+function setLoading(isLoading) {
+  elements.calculateButton.disabled = isLoading;
+  elements.calculateButton.classList.toggle("is-loading", isLoading);
+}
+
+function showMessage(text, type = "") {
+  elements.message.textContent = text;
+  elements.message.className = `status-message ${type}`.trim();
+}
+
+function showApiNotice() {
+  const template = document.querySelector("#googleApiNotice");
+  elements.fareNote.innerHTML = "";
+  elements.fareNote.append(template.content.cloneNode(true));
+}
+
+function toggleAdminPanel() {
+  const isHidden = elements.adminPanel.hidden;
+  elements.adminPanel.hidden = !isHidden;
+  elements.adminToggle.setAttribute("aria-expanded", String(isHidden));
+  if (isHidden) elements.adminPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function hydrateAdminForm() {
+  elements.adminBaseFare.value = state.config.baseFare;
+  elements.adminRateTier1.value = state.config.rates.tier1;
+  elements.adminRateTier2.value = state.config.rates.tier2;
+  elements.adminRateTier3.value = state.config.rates.tier3;
+  elements.adminPeakMultiplier.value = state.config.peakMultiplier;
+  elements.adminCardSurcharge.value = state.config.cardSurcharge;
+  elements.adminDefaultTolls.value = state.config.defaultTolls;
+  elements.adminBrandName.value = state.config.texts.brandName;
+  elements.adminHeadline.value = state.config.texts.headline;
+  elements.adminIntro.value = state.config.texts.intro;
+}
+
+function handleAdminSubmit(event) {
+  event.preventDefault();
+
+  const updatedConfig = {
+    ...state.config,
+    baseFare: readPositiveNumber(elements.adminBaseFare, DEFAULT_CONFIG.baseFare),
+    rates: {
+      tier1: readPositiveNumber(elements.adminRateTier1, DEFAULT_CONFIG.rates.tier1),
+      tier2: readPositiveNumber(elements.adminRateTier2, DEFAULT_CONFIG.rates.tier2),
+      tier3: readPositiveNumber(elements.adminRateTier3, DEFAULT_CONFIG.rates.tier3),
+    },
+    peakMultiplier: Math.max(1, readPositiveNumber(elements.adminPeakMultiplier, 1.15)),
+    cardSurcharge: readPositiveNumber(elements.adminCardSurcharge, 0.15),
+    defaultTolls: readPositiveNumber(elements.adminDefaultTolls, 0),
+    texts: {
+      ...state.config.texts,
+      brandName: elements.adminBrandName.value.trim() || DEFAULT_CONFIG.texts.brandName,
+      headline: elements.adminHeadline.value.trim() || DEFAULT_CONFIG.texts.headline,
+      intro: elements.adminIntro.value.trim() || DEFAULT_CONFIG.texts.intro,
+    },
+  };
+
+  state.config = updatedConfig;
+  saveConfig();
+  applyTexts();
+  showMessage("Cambios guardados. La próxima cotización usará estos valores.", "success");
+}
+
+function readPositiveNumber(input, fallback) {
+  const value = Number(input.value);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
